@@ -1,0 +1,107 @@
+version: '3'
+
+services:
+
+  postgres:
+    image: postgres:13.6
+    volumes:
+      - postgres_data:/docker:rw
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=12345
+    ports:
+      - "15432:5432"
+
+
+  pg_admin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment: 
+      - PGADMIN_DEFAULT_EMAIL=diegoferrarini123@gmail.com 
+      - PGADMIN_DEFAULT_PASSWORD=123456
+    ports:
+      - "16543:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      
+  metabase:
+    image: metabase/metabase
+    ports:
+      - 3001:3000
+    container_name: metabase
+    restart: always
+    volumes:
+      - metabase_data:/metabase_data
+    networks:
+      - webnet
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.0
+    container_name: elasticsearch
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:7.5.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+
+  redis:
+    container_name: redis
+    image: redis
+    command: redis-server --appendonly yes
+    hostname: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - /home/duducp/Redis:/var/lib/postgresql/data
+
+  rabbitmq:
+    container_name: "rabbitmq"
+    image: rabbitmq:3.8-management-alpine
+    environment:
+        - RABBITMQ_DEFAULT_USER=myuser
+        - RABBITMQ_DEFAULT_PASS=mypassword
+    ports:
+            # AMQP protocol port
+        - '5672:5672'
+          # HTTP management UI
+        - '15672:15672'
+    volumes:
+        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+        - webnet
+networks:
+  webnet:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  metabase_data:
+  pgadmin_data:
+  elasticsearch-data:
+    driver: local
